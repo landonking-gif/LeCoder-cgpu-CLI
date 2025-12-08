@@ -12,6 +12,10 @@ Common issues and their solutions when using LeCoder cGPU CLI.
 - [File Transfer Issues](#file-transfer-issues)
 - [Notebook Management Issues](#notebook-management-issues)
 - [Performance Issues](#performance-issues)
+- [Session Management Issues](#session-management-issues)
+- [Kernel Mode Issues](#kernel-mode-issues)
+- [JSON Output Issues](#json-output-issues)
+- [Binary Distribution Issues](#binary-distribution-issues)
 - [Platform-Specific Issues](#platform-specific-issues)
 - [Getting More Help](#getting-more-help)
 
@@ -436,6 +440,300 @@ mv history_recent.jsonl ~/.config/lecoder-cgpu/state/history.jsonl
 
 ---
 
+## Session Management Issues
+
+### Error: "Maximum concurrent sessions reached"
+
+**Problem**: Tier limit exceeded (Free: 1 session, Pro: 5 sessions)
+
+**Solution**:
+```bash
+# List active sessions
+lecoder-cgpu sessions list
+
+# Close unused sessions
+lecoder-cgpu sessions close <session-id>
+
+# Or close all and start fresh
+lecoder-cgpu sessions close --all
+```
+
+### Session Marked as Stale
+
+**Problem**: Session became unresponsive or timed out
+
+**Symptoms**:
+- `sessions list` shows session as "stale"
+- Commands hang or timeout
+- Health checks failing
+
+**Solution**:
+```bash
+# Force close stale session
+lecoder-cgpu sessions close <session-id> --force
+
+# Create new session
+lecoder-cgpu connect --gpu T4
+```
+
+### Cannot Switch Sessions
+
+**Problem**: `sessions switch` command fails
+
+**Possible Causes**:
+1. Target session doesn't exist
+2. Target session is stale
+3. Connection timeout during switch
+
+**Solution**:
+```bash
+# Verify session exists
+lecoder-cgpu sessions list
+
+# If stale, close and reconnect
+lecoder-cgpu sessions close <session-id>
+lecoder-cgpu connect --gpu T4 --name my-session
+```
+
+### Session Not Persisting After Restart
+
+**Problem**: Sessions lost after CLI restart
+
+**Explanation**: This is expected behavior. Sessions are runtime-only and not persisted to disk.
+
+**Solution**: Use `connect` to re-establish sessions on CLI restart.
+
+---
+
+## Kernel Mode Issues
+
+### Error: "Kernel not found"
+
+**Problem**: Jupyter kernel disconnected or crashed
+
+**Symptoms**:
+- `run --kernel` fails with kernel errors
+- "Kernel died" messages
+- WebSocket connection failures
+
+**Solution**:
+```bash
+# Check kernel status
+lecoder-cgpu kernel status
+
+# Restart kernel
+lecoder-cgpu kernel restart
+
+# Or reconnect entirely
+lecoder-cgpu disconnect
+lecoder-cgpu connect --gpu T4
+```
+
+### Kernel Execution Timeout
+
+**Problem**: Code execution times out
+
+**Default**: 300 seconds (5 minutes)
+
+**Solution**:
+```bash
+# Increase timeout for long-running code
+lecoder-cgpu run --kernel --timeout 3600 "long_training()"
+
+# For very long jobs, consider terminal mode
+lecoder-cgpu run "python train.py"
+```
+
+### Kernel Memory Exhausted (OOM)
+
+**Problem**: Kernel killed due to memory pressure
+
+**Symptoms**:
+- Kernel restarts unexpectedly
+- "RuntimeError: CUDA out of memory" errors
+- Silent execution failures
+
+**Solution**:
+```bash
+# Check memory usage
+lecoder-cgpu run --kernel "import torch; print(torch.cuda.memory_summary())"
+
+# Clear GPU memory
+lecoder-cgpu run --kernel "import torch; torch.cuda.empty_cache()"
+
+# Restart kernel to fully clear
+lecoder-cgpu kernel restart
+```
+
+### Kernel State Lost After Reconnect
+
+**Problem**: Variables/imports lost after reconnection
+
+**Explanation**: Kernel state is ephemeral. Reconnecting creates a new kernel.
+
+**Solution**:
+```bash
+# Save state before disconnect
+lecoder-cgpu run --kernel "import dill; dill.dump_session('state.pkl')"
+
+# Restore after reconnect
+lecoder-cgpu run --kernel "import dill; dill.load_session('state.pkl')"
+```
+
+---
+
+## JSON Output Issues
+
+### JSON Parsing Errors
+
+**Problem**: `--json` output not valid JSON
+
+**Possible Causes**:
+1. stderr mixed with stdout
+2. Warning messages in output
+3. Partial output from timeout
+
+**Solution**:
+```bash
+# Redirect stderr separately
+lecoder-cgpu run --json "code" 2>/dev/null | jq .
+
+# Or capture both
+lecoder-cgpu run --json "code" 2>errors.log | jq .
+```
+
+### Unexpected Fields in JSON
+
+**Problem**: JSON structure doesn't match expectations
+
+**Solution**: Check the API reference for exact schema:
+```bash
+# Validate output structure
+lecoder-cgpu run --json "1+1" | jq 'keys'
+# Expected: ["success", "result", "stdout", "stderr", "executionTime"]
+```
+
+### Empty JSON Output
+
+**Problem**: Command returns `{}` or `null`
+
+**Possible Causes**:
+1. Code produced no output
+2. Execution failed silently
+3. Timeout occurred
+
+**Solution**:
+```bash
+# Check exit code
+lecoder-cgpu run --json "code"; echo "Exit: $?"
+
+# Add explicit output
+lecoder-cgpu run --json "result = compute(); print(result); result"
+```
+
+### JSON Output Truncated
+
+**Problem**: Large output gets cut off
+
+**Default limit**: ~1MB of output
+
+**Solution**:
+```bash
+# For large outputs, write to file instead
+lecoder-cgpu run --kernel "
+import json
+with open('output.json', 'w') as f:
+    json.dump(large_data, f)
+"
+lecoder-cgpu download output.json ./output.json
+```
+
+---
+
+## Binary Distribution Issues
+
+### Error: "Binary not found" or "Command not found"
+
+**Problem**: lecoder-cgpu not in PATH after binary install
+
+**Solution**:
+```bash
+# Find where binary was installed
+which lecoder-cgpu
+
+# If not found, add to PATH manually
+export PATH="$PATH:/path/to/lecoder-cgpu/bin"
+
+# Or use absolute path
+/path/to/lecoder-cgpu/bin/lecoder-cgpu --version
+```
+
+### Error: "Permission denied" on Binary
+
+**Problem**: Binary lacks execute permission
+
+**Solution**:
+```bash
+# macOS/Linux
+chmod +x /path/to/lecoder-cgpu
+
+# Verify
+ls -la /path/to/lecoder-cgpu
+```
+
+### macOS: "App is damaged" or Gatekeeper Block
+
+**Problem**: macOS security prevents running downloaded binary
+
+**Solution**:
+```bash
+# Option 1: Remove quarantine attribute
+xattr -d com.apple.quarantine /path/to/lecoder-cgpu
+
+# Option 2: Allow in Security & Privacy
+# System Preferences → Security & Privacy → "Allow Anyway"
+```
+
+### Linux: GLIBC Version Mismatch
+
+**Problem**: Binary compiled with newer glibc than system
+
+**Symptoms**:
+- "version `GLIBC_X.XX' not found"
+- Binary fails to start
+
+**Solution**:
+```bash
+# Check system glibc version
+ldd --version
+
+# Options:
+# 1. Upgrade system glibc (if possible)
+# 2. Use container with matching glibc
+# 3. Build from source: npm install && npm run build
+```
+
+### Windows: Microsoft Defender SmartScreen
+
+**Problem**: Windows blocks unknown binary
+
+**Solution**:
+1. Click "More info" on SmartScreen dialog
+2. Click "Run anyway"
+3. Or right-click → Properties → Unblock
+
+### Binary Size Concerns
+
+**Problem**: Binary seems large (~50-70MB)
+
+**Explanation**: Binary includes bundled Node.js runtime for portability.
+
+**Alternatives**:
+- Use npm install for smaller footprint
+- Use Docker image if available
+
+---
+
 ## Platform-Specific Issues
 
 ### macOS: "Operation not permitted"
@@ -693,16 +991,22 @@ lecoder-cgpu --verbose [your-command] 2>&1 | tee error.log
 A: Creating a runtime can take 30-60 seconds. Colab needs to provision resources.
 
 **Q: Can I use multiple runtimes simultaneously?**  
-A: Currently, CLI manages one runtime at a time per session.
+A: Yes! Use `lecoder-cgpu sessions list` to manage multiple sessions. Free tier allows 1 concurrent session, Pro allows up to 5.
 
 **Q: Does this work with Colab Pro?**  
-A: Yes! You'll get priority GPU access and longer sessions.
+A: Yes! You'll get priority GPU access, longer sessions, and more concurrent sessions (5 vs 1).
 
 **Q: Why do I need to re-authenticate?**  
 A: OAuth tokens expire after some time. Re-auth is automatic when needed.
 
 **Q: Can I use this in CI/CD?**  
-A: Not recommended due to OAuth requirement. Better suited for interactive development.
+A: Yes! Use headless authentication with `LECODER_REFRESH_TOKEN` or mock kernel testing. See the CI/CD Integration section in the README.
+
+**Q: What's the difference between terminal and kernel mode?**  
+A: Terminal mode runs shell commands in a pseudo-terminal. Kernel mode executes Python code directly in a Jupyter kernel with structured output.
+
+**Q: How do I get JSON output for scripting?**  
+A: Use the `--json` flag: `lecoder-cgpu run --json "1+1"` returns structured JSON with result, stdout, stderr, and timing.
 
 ---
 

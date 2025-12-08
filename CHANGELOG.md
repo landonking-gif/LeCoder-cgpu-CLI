@@ -7,8 +7,124 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- NPM publishing documentation in INSTALLATION.md for maintainers
+- Package verification checklist in docs/npm-package-checklist.md
+- npm pack testing in prepare-release.sh script
+
 ### Changed
+- Enhanced prepare-release.sh with tarball content validation
+- Updated CONTRIBUTING.md with release process overview
+- Improved README.md npm installation instructions with version examples
+
+## [0.5.1] - 2025-01-XX
+
+### Added
+- **Comprehensive Test Suite**: Full test coverage for all major components
+  - Mock infrastructure: `MockJupyterKernel`, `MockColabClient`, `MockDriveClient`
+  - Unit tests: Session manager, Colab connection, connection pool, runtime manager, error handler, remote command runner
+  - Integration tests: run, connect, sessions, logs commands
+  - E2E tests: Full workflow, error scenarios
+  - New npm scripts: `test:unit`, `test:integration`, `test:e2e`, `test:perf`, `test:coverage`, `test:ci`
+- **API Reference Documentation**: Complete command reference in `docs/api-reference.md`
+  - All CLI commands with options and examples
+  - JSON output schemas
+  - Error codes (1001-1499) with recovery suggestions
+  - Exit codes and environment variables
+  - Integration patterns (Python, Bash, Node.js, GitHub Actions)
+- **Testing Guide**: Developer testing documentation in `docs/testing.md`
+  - Test structure and organization
+  - Running tests by category
+  - Writing tests with examples
+  - Mock infrastructure usage
+  - Coverage goals and CI integration
+- **Example Scripts**: Automation examples in `examples/`
+  - `multi-session-training.sh`: Parallel experiments across sessions
+  - `auto-retry.py`: Exponential backoff with error categorization
+  - `notebook-automation.py`: Programmatic notebook management
+- **GitHub Actions CI Workflow**: `.github/workflows/test.yml`
+  - Lint and type checking
+  - Unit, integration, and E2E tests
+  - Cross-platform binary builds and testing
+  - Coverage reporting with Codecov
+
+### Changed
+- **README.md**: Enhanced documentation
+  - Multi-session workflow examples
+  - Error recovery patterns with code samples
+  - CI/CD integration guide
+  - Performance optimization tips
+- **TROUBLESHOOTING.md**: Expanded troubleshooting
+  - Session management issues section
+  - Kernel mode issues section
+  - JSON output issues section
+  - Binary distribution issues section
+  - Updated FAQ with multi-session and CI/CD answers
+- **package.json**: New test scripts for granular test execution
+
+### Fixed
+- Connection state enum values now correctly use UPPERCASE (`CONNECTED`, `DISCONNECTED`, etc.)
+- ColabConnection uses `shutdown()` method (not `close()`)
+
+## [0.5.0] - 2025-12-08
+
+### Added
+- **Binary Releases**: Standalone executables for all major platforms
+  - macOS (x64, arm64) - No Xcode or Homebrew required
+  - Windows (x64) - No Node.js installation needed
+  - Linux (x64, arm64) - Works on Ubuntu, Debian, RHEL, and derivatives
+- **GitHub Actions CI/CD**: Automated binary builds on release
+  - Matrix builds across macOS, Windows, Linux runners
+  - Automatic checksum generation (SHA256)
+  - Release asset uploads
+- **Installation Documentation**: Comprehensive binary installation guide
+  - Platform-specific instructions
+  - Checksum verification steps
+  - Troubleshooting for common issues
+- **Binary Testing**: Automated smoke tests for generated binaries
+  - Version check validation
+  - File size verification
+  - Cross-platform compatibility checks
+- **Multi-Session Support**: Manage multiple concurrent Colab runtimes (up to 5 for Pro users)
+  - New `sessions` command group: `list`, `switch`, `close`, `clean`
+  - `--session <id>` global flag to target specific sessions
+  - Session persistence in `~/.config/cgpu/state/sessions.json`
+  - Automatic session limit enforcement (1 for free, 5 for Pro)
+  - Session status tracking: active, connected, idle, stale
+  - Integration with all existing commands (run, connect, copy, status)
+- **Comprehensive Logging System**: File-based debug logging for troubleshooting
+  - New `debug` command group: `show`, `list`, `path`, `tail`
+  - Log levels: DEBUG, INFO, WARN, ERROR
+  - Log categories: CLI, API, SESSION, RUNTIME, WEBSOCKET, KERNEL, COMMAND
+  - JSON-formatted logs with search and filter capabilities
+  - Automatic log rotation (daily and size-based)
+  - 7-day retention policy
+  - Logs stored in `~/.config/cgpu/state/logs/`
+- **Enhanced Documentation**:
+  - Comprehensive logging documentation in `docs/logging.md`
+  - Session management examples in README
+  - Updated feature list and quick start guide
+
+### Changed
+- Enhanced pkg configuration with explicit targets
+- Updated README with binary installation as primary method
+- Improved build scripts for cross-platform support
+- Binary size optimized (~50-80MB per platform)
+- Session storage path fix: removed double "state" nesting (`state/state/` → `state/`)
+- Default log level set to DEBUG for better troubleshooting
+- API calls now logged with timing and status codes
+- Session lifecycle events tracked in logs
 - Session storage now logs a one-time warning when stored credentials are missing required Drive scopes, prompting re-authentication instead of silently invalidating sessions
+
+### Fixed
+- Session storage ensureStorage() infinite recursion bug
+- Session file path construction issue
+
+### Technical Details
+- pkg version: @yao-pkg/pkg 5.11.5
+- Node.js runtime: 18.x (bundled in binaries)
+- Supported platforms: macOS 10.15+, Windows 10+, Linux (glibc 2.17+)
+- Binary naming: `lecoder-cgpu-<platform>-<arch>`
 
 ## [0.4.0] - 2025-12-07
 

@@ -201,7 +201,7 @@ Use the bug report template and include:
 **Environment:**
 - OS: macOS 14.1 Sonoma
 - Node.js: v20.10.0
-- lecoder-cgpu: v0.4.0
+- lecoder-cgpu: v0.5.0
 
 **Steps to reproduce:**
 1. Run `lecoder-cgpu connect`
@@ -331,6 +331,49 @@ Current priorities (check issues for details):
 - 📝 **Documentation** - Tutorials, examples, video guides
 - 🎨 **UX improvements** - Better error messages, progress indicators
 - ⚡ **Performance** - Optimize API calls and connection pooling
+
+## 📦 Release Process (Maintainers)
+
+Releases involve both npm package publication and binary distribution. See [INSTALLATION.md - Publishing to NPM](./INSTALLATION.md#publishing-to-npm-maintainers-only) for complete instructions.
+
+### Quick Release Checklist
+
+- [ ] Version bumped in `package.json`
+- [ ] `CHANGELOG.md` updated with release notes
+- [ ] All tests passing (`npm test`)
+- [ ] Binaries built and tested (`npm run pkg:all && npm run pkg:test`)
+- [ ] npm package verified (`npm pack` + content inspection)
+- [ ] Published to npm (`npm publish`)
+- [ ] Git tag created and pushed (`git tag v<version> && git push --tags`)
+- [ ] GitHub release created with binaries
+- [ ] Release announcement (optional)
+
+### Automated Preparation
+
+Use the `prepare-release.sh` script to automate most steps:
+
+```bash
+./scripts/prepare-release.sh 0.5.2
+```
+
+This will:
+- Update `package.json` version
+- Run tests and build
+- Build and test all platform binaries
+- Verify npm package contents
+- Generate checksums
+
+After running the script:
+1. Review and update `CHANGELOG.md`
+2. Commit changes
+3. Follow npm publishing workflow (see INSTALLATION.md)
+4. Create Git tag and GitHub release
+
+### Distribution Channels
+
+- **npm Registry**: For users installing via `npm install -g lecoder-cgpu`
+- **GitHub Releases**: For users downloading platform-specific binaries
+- **Package Managers**: Future support for Homebrew, Chocolatey, etc.
 
 ## 🤝 Code of Conduct
 

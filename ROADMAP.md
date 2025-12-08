@@ -39,23 +39,37 @@ To provide the most seamless, powerful, and developer-friendly way to interact w
 - ✅ Open notebooks in browser
 - ✅ Scope validation and automatic re-authentication
 
----
-
-## Current Development 🔨
-
-### v0.5.0 - Distribution & Packaging (In Progress)
-**Target**: Q1 2025
-
-**Goals**: Make installation and distribution seamless for all users
-
-#### Features
-- 📦 **Binary Releases**
+### v0.5.0 - Distribution & Packaging (Released)
+- ✅ **Binary Releases**
   - Standalone executables for macOS (ARM64, x86_64)
   - Windows binaries (x64)
   - Linux binaries (x64, ARM64)
   - No Node.js installation required
   - Self-contained with all dependencies
+- ✅ **GitHub Actions CI/CD**
+  - Automated binary builds on release
+  - Matrix builds across macOS, Windows, Linux runners
+  - Automatic checksum generation (SHA256)
+  - Release asset uploads
+- ✅ **Installation Documentation**
+  - Comprehensive binary installation guide
+  - Platform-specific instructions
+  - Checksum verification steps
+- ✅ **Binary Testing Infrastructure**
+  - Automated smoke tests for generated binaries
+  - Version check validation
+  - Cross-platform compatibility checks
 
+---
+
+## Current Development 🔨
+
+### v0.6.0 - Extended Distribution (In Progress)
+**Target**: Q1 2025
+
+**Goals**: Expand distribution channels and improve installation experience
+
+#### Features
 - 🐳 **Docker Support**
   - Official Docker image
   - Multi-stage build for minimal image size
@@ -63,7 +77,7 @@ To provide the most seamless, powerful, and developer-friendly way to interact w
   - Examples for CI/CD integration
 
 - 📚 **Package Managers**
-  - npm package (currently manual install)
+  - npm package publication
   - Homebrew formula for macOS
   - Debian/RPM packages for Linux
   - Chocolatey package for Windows
@@ -78,7 +92,7 @@ To provide the most seamless, powerful, and developer-friendly way to interact w
 
 ## Planned Versions 📅
 
-### v0.6.0 - Workspace Sync (Q2 2025)
+### v0.7.0 - Workspace Sync (Q2 2025)
 
 **Theme**: Seamless local-to-cloud development workflow
 

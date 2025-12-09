@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2025-12-09
+
+### Added
+- **Self-Update Command**: `lecoder-cgpu upgrade` for easy updates
+  - Check for updates: `lecoder-cgpu upgrade --check`
+  - Install latest stable: `lecoder-cgpu upgrade`
+  - Install beta for testing: `lecoder-cgpu upgrade --beta`
+- **Version Flag**: `lecoder-cgpu --version` or `lecoder-cgpu -v` to check current version
+
+### Changed
+- Updated README with upgrade command documentation
+- Added version and upgrade commands to Essential Commands section
+
 ## [0.5.4] - 2025-12-09
 
 ### Added

@@ -8,6 +8,8 @@ if (!globalThis.fetch) {
 
 import path from "node:path";
 import readline from "node:readline";
+import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
@@ -142,9 +144,15 @@ async function createApp(configPath?: string) {
   return { auth, colabClient, driveClient, notebookManager, config, sessionManager, runtimeManager, connectionPool, logger };
 }
 
+// Get package version dynamically
+// When compiled, this file is at dist/src/index.js, so we need to go up two levels
+const require = createRequire(import.meta.url);
+const packageJson = require("../../package.json");
+
 const program = new Command();
 program
   .name("lecoder-cgpu")
+  .version(packageJson.version, "-v, --version", "output the current version")
   .description("LeCoder cGPU - Robust CLI for Google Colab GPU access")
   .option("-c, --config <path>", "path to config file")
   .option("--force-login", "ignore cached session")
@@ -1541,6 +1549,61 @@ debugCmd
         );
       }
     });
+  });
+
+// Upgrade command for easy updates
+program
+  .command("upgrade")
+  .description("Check for updates and upgrade to the latest version")
+  .option("--check", "Only check for updates without installing")
+  .option("--beta", "Install the beta version instead of stable")
+  .action(async (options) => {
+    const currentVersion = packageJson.version;
+    const spinner = ora("Checking for updates...").start();
+    
+    try {
+      // Get latest version from npm
+      const tag = options.beta ? "beta" : "latest";
+      const npmInfo = execSync(`npm view lecoder-cgpu dist-tags --json`, { encoding: "utf-8" });
+      const distTags = JSON.parse(npmInfo);
+      const latestVersion = distTags[tag];
+      
+      if (!latestVersion) {
+        spinner.fail(`No ${tag} version found`);
+        return;
+      }
+      
+      if (currentVersion === latestVersion) {
+        spinner.succeed(chalk.green(`You're on the latest ${tag} version: ${currentVersion}`));
+        return;
+      }
+      
+      spinner.info(`Current: ${chalk.yellow(currentVersion)} → Latest ${tag}: ${chalk.green(latestVersion)}`);
+      
+      if (options.check) {
+        console.log(chalk.gray(`\nTo upgrade, run: lecoder-cgpu upgrade`));
+        return;
+      }
+      
+      // Perform upgrade
+      const upgradeSpinner = ora(`Upgrading to ${latestVersion}...`).start();
+      try {
+        execSync(`npm install -g lecoder-cgpu@${tag}`, { stdio: "pipe" });
+        upgradeSpinner.succeed(chalk.green(`Successfully upgraded to ${latestVersion}!`));
+        console.log(chalk.gray("\nRestart your terminal or run 'lecoder-cgpu --version' to verify."));
+      } catch (installErr) {
+        upgradeSpinner.fail("Upgrade failed");
+        console.error(chalk.red("Try running manually: npm install -g lecoder-cgpu@latest"));
+        if (process.env.LECODER_CGPU_DEBUG) {
+          console.error(installErr);
+        }
+      }
+    } catch (err) {
+      spinner.fail("Failed to check for updates");
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(chalk.red(message));
+      console.log(chalk.gray("\nTry running manually: npm view lecoder-cgpu version"));
+    }
   });
 
 try {

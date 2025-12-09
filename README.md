@@ -168,6 +168,11 @@ lecoder-cgpu logs                 # View execution history
 # Multi-session (Colab Pro)
 lecoder-cgpu sessions list        # List all sessions
 lecoder-cgpu sessions switch <id> # Switch active session
+
+# Version & Updates
+lecoder-cgpu --version            # Check current version
+lecoder-cgpu upgrade              # Upgrade to latest version
+lecoder-cgpu upgrade --check      # Check for updates without installing
 ```
 
 📚 **[Complete API Reference](./docs/api-reference.md)** | 🔧 **[Troubleshooting](./TROUBLESHOOTING.md)**
@@ -567,8 +572,32 @@ Start an OpenAI-compatible API server backed by Google Gemini.
 - `--default-model <model>` - Default model (default: gemini-2.0-flash)
 - `--list-models` - List available Gemini models
 
+### `upgrade`
+
+Check for updates and upgrade to the latest version.
+
+**Options:**
+- `--check` - Only check for updates without installing
+- `--beta` - Install the beta version instead of stable
+
+**Examples:**
+```bash
+# Check current version
+lecoder-cgpu --version
+
+# Check for updates
+lecoder-cgpu upgrade --check
+
+# Upgrade to latest stable version
+lecoder-cgpu upgrade
+
+# Upgrade to beta (for testing new features)
+lecoder-cgpu upgrade --beta
+```
+
 ## Global Options
 
+- `-v, --version` - Output the current version
 - `-c, --config <path>` - Path to config file
 - `--force-login` - Ignore cached session and re-authenticate
 

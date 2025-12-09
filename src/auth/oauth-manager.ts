@@ -22,6 +22,11 @@ interface AuthenticatedSession {
   };
 }
 
+export interface LoginOptions {
+  /** Force account selection screen in browser (useful for switching accounts) */
+  selectAccount?: boolean;
+}
+
 const UserInfoSchema = z.object({
   name: z.string(),
   email: z.string().email(),
@@ -35,18 +40,26 @@ export class GoogleOAuthManager {
     private readonly storage: FileAuthStorage,
   ) {}
 
-  async getAccessToken(forceLogin = false): Promise<AuthenticatedSession> {
+  async getAccessToken(forceLogin = false, options?: LoginOptions): Promise<AuthenticatedSession> {
     if (!forceLogin) {
       const session = await this.tryRefreshFromStorage();
       if (session) {
         return session;
       }
     }
-    return this.performLogin();
+    return this.performLogin(options);
   }
 
   async signOut(): Promise<void> {
     await this.storage.removeSession();
+  }
+
+  /**
+   * Check if there's an existing session without triggering login.
+   * Returns the stored session info if available, undefined otherwise.
+   */
+  async checkExistingSession(): Promise<AuthenticatedSession | undefined> {
+    return this.tryRefreshFromStorage();
   }
 
   private async tryRefreshFromStorage(): Promise<AuthenticatedSession | undefined> {
@@ -78,17 +91,29 @@ export class GoogleOAuthManager {
     }
   }
 
-  private async performLogin(): Promise<AuthenticatedSession> {
-    console.log(chalk.cyan("No cached session found. Starting OAuth login..."));
+  private async performLogin(options?: LoginOptions): Promise<AuthenticatedSession> {
+    const selectAccount = options?.selectAccount ?? false;
+    
+    if (selectAccount) {
+      console.log(chalk.cyan("Starting OAuth login with account selection..."));
+    } else {
+      console.log(chalk.cyan("No cached session found. Starting OAuth login..."));
+    }
+    
     const verifier = await this.client.generateCodeVerifierAsync();
     const state = randomUUID();
     const server = createLoopbackServer();
     const port = await server.start();
     const redirectUri = `http://127.0.0.1:${port}/callback`;
+    
+    // Use "select_account" prompt to force account picker, "consent" for normal login
+    // "select_account consent" combines both: shows account picker AND requests consent
+    const promptValue = selectAccount ? "select_account consent" : "consent";
+    
     const authUrl = this.client.generateAuthUrl({
       access_type: "offline",
       scope: [...REQUIRED_SCOPES],
-      prompt: "consent",
+      prompt: promptValue,
       state,
       code_challenge_method: CodeChallengeMethod.S256,
       code_challenge: verifier.codeChallenge,

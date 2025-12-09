@@ -287,8 +287,17 @@ export class ColabConnection extends EventEmitter {
       sessionId: this.sessionId,
     });
 
+    // Setup handlers BEFORE connecting to catch any errors during connection
     this.setupClientEventHandlers();
-    await this.kernelClient.connect();
+    
+    try {
+      await this.kernelClient.connect();
+    } catch (error) {
+      // Clean up the kernel client on connection failure
+      this.kernelClient.removeAllListeners();
+      this.kernelClient = null;
+      throw error;
+    }
 
     this.reconnectAttempts = 0;
     this.setState(ConnectionState.CONNECTED);
@@ -317,7 +326,13 @@ export class ColabConnection extends EventEmitter {
     });
 
     this.kernelClient.on("error", (error: Error) => {
-      this.emit("error", error);
+      // Only emit error if there are listeners, otherwise it will crash
+      // the process with an unhandled 'error' event
+      if (this.listenerCount("error") > 0) {
+        this.emit("error", error);
+      } else if (process.env.LECODER_CGPU_DEBUG) {
+        console.error("Unhandled kernel client error:", error.message);
+      }
     });
   }
 

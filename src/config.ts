@@ -117,7 +117,37 @@ export async function writeConfigFile(
 ): Promise<void> {
   const parsed = ConfigSchema.parse(config);
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
-  await fs.writeFile(targetPath, JSON.stringify(parsed, null, 2) + "\n", "utf-8");
+  // Write config file with restrictive permissions (0o600) to protect client secret
+  // This ensures only the file owner can read/write the config file
+  await fs.writeFile(
+    targetPath,
+    JSON.stringify(parsed, null, 2) + "\n",
+    { encoding: "utf-8", mode: 0o600 }
+  );
+  // Ensure permissions are set correctly even if umask interfered
+  await fs.chmod(targetPath, 0o600);
+}
+
+/**
+ * Get the default config directory path.
+ * Useful for cleanup operations.
+ */
+export function getDefaultConfigDir(): string {
+  return DEFAULT_CONFIG_DIR;
+}
+
+/**
+ * Remove all configuration and state files.
+ * This performs a complete reset of the tool.
+ */
+export async function removeAllConfig(): Promise<void> {
+  try {
+    await fs.rm(DEFAULT_CONFIG_DIR, { recursive: true, force: true });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err;
+    }
+  }
 }
 
 export async function runInteractiveOAuthWizard(

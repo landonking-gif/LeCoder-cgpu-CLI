@@ -287,7 +287,60 @@ program
       
       if (mode === "kernel") {
         // Kernel mode: Execute Python code via Jupyter kernel
-        const connection = await runtimeManager.createKernelConnection(runtime);
+        let connection;
+        try {
+          connection = await runtimeManager.createKernelConnection(runtime);
+          
+          // Attach error handler to prevent unhandled error crash
+          connection.on("error", (error: Error) => {
+            if (process.env.LECODER_CGPU_DEBUG) {
+              console.error(chalk.yellow("Connection error:"), error.message);
+            }
+          });
+        } catch (connError) {
+          // Handle connection errors (WebSocket 404, kernel not found, etc.)
+          const errorMessage = connError instanceof Error ? connError.message : String(connError);
+          const isNotFound = errorMessage.includes("404") || errorMessage.includes("not found");
+          
+          const result: ExecutionResult = {
+            status: ReplyStatus.ERROR,
+            stdout: "",
+            stderr: "",
+            traceback: [],
+            display_data: [],
+            execution_count: null,
+            error: {
+              ename: isNotFound ? "KernelNotFound" : "ConnectionError",
+              evalue: errorMessage,
+              traceback: [],
+            },
+          };
+          
+          // Store in history
+          const entry = ExecutionHistoryStorage.createEntry(
+            result,
+            commandString,
+            "kernel",
+            { label: runtime.label, accelerator: runtime.accelerator },
+            ErrorCode.IO_ERROR
+          );
+          await historyStorage.append(entry);
+          
+          if (jsonMode) {
+            const jsonOutput = OutputFormatter.formatExecutionResult(result, { json: true });
+            console.log(jsonOutput);
+          } else {
+            console.error(chalk.red(`Connection error: ${errorMessage}`));
+            if (isNotFound) {
+              console.log(chalk.gray("Tip: Try using --new-runtime to request a fresh GPU runtime."));
+              console.log(chalk.gray("Or run 'lecoder-cgpu sessions clean' to remove stale sessions."));
+            }
+          }
+          
+          process.exitCode = 1;
+          return;
+        }
+        
         try {
           const result = await connection.executeCode(commandString);
           
@@ -667,18 +720,49 @@ program
   .command("auth")
   .description("Authenticate or re-authenticate with Google Colab")
   .option("-f, --force", "Skip confirmation if already authenticated")
+  .option("--select-account", "Show account picker to login with a different Google account")
   .option("--validate", "Verify credentials with a test API call")
   .action(async (options, cmd) => {
     const globalOptions = (cmd.parent?.opts() as GlobalOptions) ?? {};
+    const selectAccount = Boolean(options.selectAccount);
+    
     await withApp(globalOptions, async ({ auth, colabClient }) => {
       let existingSession: Awaited<ReturnType<typeof auth.getAccessToken>> | undefined;
       
-      // Check if already authenticated
+      // Check if already authenticated (use checkExistingSession to avoid triggering login)
       try {
-        existingSession = await auth.getAccessToken(globalOptions.forceLogin);
+        existingSession = await auth.checkExistingSession();
       } catch {
         // No existing session, proceed with fresh authentication
         existingSession = undefined;
+      }
+
+      // If --select-account is used, always proceed with authentication
+      // to allow switching accounts without prompting
+      if (selectAccount) {
+        if (existingSession) {
+          console.log(
+            chalk.yellow(
+              `Currently authenticated as ${existingSession.account.label} <${existingSession.account.id}>`
+            )
+          );
+          console.log(chalk.cyan("Switching accounts..."));
+          await auth.signOut();
+        }
+        
+        const session = await auth.getAccessToken(true, { selectAccount: true });
+        console.log(
+          chalk.green(
+            `✓ Authenticated as ${session.account.label} <${session.account.id}>`
+          )
+        );
+        
+        displaySetupReminder();
+        
+        if (options.validate) {
+          await validateCredentials(colabClient);
+        }
+        return;
       }
 
       // If session exists and neither --force nor --force-login is set, prompt for confirmation
@@ -707,6 +791,7 @@ program
             const yesPattern = /^y(es)?$/;
             if (!yesPattern.exec(answer.toLowerCase())) {
               console.log(chalk.gray("Authentication cancelled."));
+              console.log(chalk.gray("Tip: Use --select-account to login with a different Google account."));
               return;
             }
           } finally {
@@ -728,42 +813,11 @@ program
         )
       );
       
-      // Display setup reminder for first-time users
-      console.log();
-      console.log(chalk.cyan.bold("📋 Setup Reminder:"));
-      console.log(chalk.gray("   To use notebook features (list, create, delete), you need Google Drive API enabled:"));
-      console.log(chalk.white("   → https://console.cloud.google.com/apis/api/drive.googleapis.com"));
-      console.log(chalk.gray("   Click 'ENABLE' if not already enabled."));
-      console.log();
+      displaySetupReminder();
 
       // Validate credentials if requested
       if (options.validate) {
-        const spinner = ora("Validating credentials...").start();
-        try {
-          const ccu = await colabClient.getCcuInfo();
-          spinner.succeed("Credentials validated");
-          console.log(
-            chalk.green(
-              `  Eligible GPUs: ${ccu.eligibleGpus.join(", ") || "None"}`
-            )
-          );
-          if (ccu.assignmentsCount > 0) {
-            console.log(
-              chalk.blue(`  Active assignments: ${ccu.assignmentsCount}`)
-            );
-          }
-        } catch (err) {
-          spinner.fail("Validation failed");
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(
-            chalk.red(`  Error: ${message}`)
-          );
-          console.log(
-            chalk.gray(
-              "  Your credentials may still work. Try running a command like 'lecoder-cgpu status'."
-            )
-          );
-        }
+        await validateCredentials(colabClient);
       }
     });
   });
@@ -771,11 +825,57 @@ program
 program
   .command("logout")
   .description("Forget cached credentials")
-  .action(async (_args, cmd) => {
-    const options = (cmd.parent?.opts() as GlobalOptions) ?? {};
-    await withApp(options, async ({ auth }) => {
+  .option("--all", "Remove ALL configuration including OAuth app credentials (complete reset)")
+  .action(async (options, cmd) => {
+    const globalOpts = (cmd.parent?.opts() as GlobalOptions) ?? {};
+    
+    if (options.all) {
+      // Complete reset - remove everything
+      if (process.stdin.isTTY) {
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        
+        try {
+          console.log(chalk.yellow("This will remove ALL configuration including:"));
+          console.log(chalk.gray("  • OAuth app credentials (client ID/secret)"));
+          console.log(chalk.gray("  • User session token"));
+          console.log(chalk.gray("  • Execution history"));
+          console.log(chalk.gray("  • Debug logs"));
+          console.log();
+          
+          const answer = await new Promise<string>((resolve) => {
+            rl.question(
+              chalk.yellow("Are you sure you want to completely reset? (y/N): "),
+              resolve
+            );
+          });
+          
+          const yesPattern = /^y(es)?$/;
+          if (!yesPattern.exec(answer.toLowerCase())) {
+            console.log(chalk.gray("Reset cancelled."));
+            return;
+          }
+        } finally {
+          rl.close();
+        }
+      }
+      
+      // Import and use removeAllConfig
+      const { removeAllConfig, getDefaultConfigDir } = await import("./config.js");
+      const configDir = getDefaultConfigDir();
+      await removeAllConfig();
+      console.log(chalk.yellow(`✓ Removed all configuration from ${configDir}`));
+      console.log(chalk.gray("Run 'lecoder-cgpu auth login' to set up fresh credentials."));
+      return;
+    }
+    
+    // Standard logout - only remove session
+    await withApp(globalOpts, async ({ auth }) => {
       await auth.signOut();
       console.log(chalk.yellow("Signed out and cleared session cache."));
+      console.log(chalk.gray("Tip: Use 'logout --all' to completely reset (remove OAuth app credentials too)."));
     });
   });
 
@@ -1714,6 +1814,50 @@ function isAlreadyReportedError(err: unknown): err is { alreadyReported: true } 
   return Boolean(
     err && typeof err === "object" && (err as { alreadyReported?: boolean }).alreadyReported,
   );
+}
+
+/**
+ * Display setup reminder for first-time users after authentication.
+ */
+function displaySetupReminder(): void {
+  console.log();
+  console.log(chalk.cyan.bold("📋 Setup Reminder:"));
+  console.log(chalk.gray("   To use notebook features (list, create, delete), you need Google Drive API enabled:"));
+  console.log(chalk.white("   → https://console.cloud.google.com/apis/api/drive.googleapis.com"));
+  console.log(chalk.gray("   Click 'ENABLE' if not already enabled."));
+  console.log();
+}
+
+/**
+ * Validate credentials with a test API call.
+ */
+async function validateCredentials(colabClient: ColabClient): Promise<void> {
+  const spinner = ora("Validating credentials...").start();
+  try {
+    const ccu = await colabClient.getCcuInfo();
+    spinner.succeed("Credentials validated");
+    console.log(
+      chalk.green(
+        `  Eligible GPUs: ${ccu.eligibleGpus.join(", ") || "None"}`
+      )
+    );
+    if (ccu.assignmentsCount > 0) {
+      console.log(
+        chalk.blue(`  Active assignments: ${ccu.assignmentsCount}`)
+      );
+    }
+  } catch (err) {
+    spinner.fail("Validation failed");
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      chalk.red(`  Error: ${message}`)
+    );
+    console.log(
+      chalk.gray(
+        "  Your credentials may still work. Try running a command like 'lecoder-cgpu status'."
+      )
+    );
+  }
 }
 
 /**

@@ -141,6 +141,69 @@ export class ColabConnection extends EventEmitter {
   }
 
   /**
+   * Wait for kernel to become ready via WebSocket status messages.
+   * This is used after WebSocket connection is established - on Colab free tier,
+   * the kernel only transitions from "starting" to "idle" after connection.
+   */
+  private async waitForKernelReadyViaWebSocket(): Promise<void> {
+    if (!this.kernelClient) {
+      throw new Error("Kernel client not connected. Connect WebSocket first.");
+    }
+
+    const timeout = this.options.kernelReadyTimeout;
+    const startTime = Date.now();
+
+    if (process.env.LECODER_CGPU_DEBUG) {
+      console.log(
+        `Waiting for kernel ${this.kernelId} to become ready via WebSocket (timeout: ${timeout}ms)`
+      );
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let resolved = false;
+      
+      // Set up timeout
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          this.kernelClient?.removeListener("status", statusHandler);
+          reject(new Error(
+            `Kernel ${this.kernelId} failed to become ready within ${timeout}ms`
+          ));
+        }
+      }, timeout);
+
+      // Listen for status messages
+      const statusHandler = (state: string) => {
+        if (process.env.LECODER_CGPU_DEBUG) {
+          console.log(
+            `Kernel ${this.kernelId} WebSocket status: ${state} (elapsed: ${Date.now() - startTime}ms)`
+          );
+        }
+        
+        // Kernel is ready when it reaches "idle" state
+        if (state === "idle" && !resolved) {
+          resolved = true;
+          clearTimeout(timeoutId);
+          this.kernelClient?.removeListener("status", statusHandler);
+          if (process.env.LECODER_CGPU_DEBUG) {
+            console.log(`Kernel ${this.kernelId} is ready`);
+          }
+          resolve();
+        }
+      };
+
+      this.kernelClient?.on("status", statusHandler);
+
+      // Also check if kernel is already idle (e.g., on reconnection)
+      // by sending a kernel_info request
+      this.kernelClient?.getKernelInfo().catch(() => {
+        // Ignore errors - the status handler will catch the response
+      });
+    });
+  }
+
+  /**
    * Initialize the connection by creating a Jupyter session
    */
   async initialize(): Promise<void> {
@@ -156,11 +219,37 @@ export class ColabConnection extends EventEmitter {
         console.log(`Kernel ID: ${this.kernelId}`);
       }
 
-      // Wait for kernel to be ready before attempting WebSocket connection
-      await this.waitForKernelReady();
+      // Verify the kernel actually exists before connecting
+      // On Colab, sessions can be cached but kernels may have been garbage collected
+      try {
+        const kernelStatus = await this.getStatus();
+        if (process.env.LECODER_CGPU_DEBUG) {
+          console.log(`Kernel verified, status: ${kernelStatus.executionState}`);
+        }
+      } catch (kernelError) {
+        // Kernel doesn't exist - need to create a fresh session
+        if (process.env.LECODER_CGPU_DEBUG) {
+          console.log(`Kernel not found (${kernelError}), creating fresh session...`);
+        }
+        
+        // Use a unique notebook path to force a new session
+        const uniquePath = `/content/lecoder-${Date.now()}.ipynb`;
+        
+        this.session = await this.createSession(uniquePath);
+        this.kernelId = this.session.kernel.id;
+        
+        if (process.env.LECODER_CGPU_DEBUG) {
+          console.log(`Fresh session created: ${this.session.id}`);
+          console.log(`Fresh Kernel ID: ${this.kernelId}`);
+        }
+      }
 
-      // Connect the kernel client
+      // Connect the kernel client FIRST - on Colab free tier, the kernel 
+      // only transitions from "starting" to "idle" after a WebSocket connection
       await this.connectKernelClient();
+      
+      // Then wait for kernel to be ready (via status messages on WebSocket)
+      await this.waitForKernelReadyViaWebSocket();
     } catch (error) {
       this.setState(ConnectionState.FAILED);
       throw error;
@@ -170,9 +259,10 @@ export class ColabConnection extends EventEmitter {
   /**
    * Create a Jupyter session via REST API
    */
-  private async createSession(): Promise<Session> {
+  private async createSession(notebookPathOverride?: string): Promise<Session> {
+    const notebookPath = notebookPathOverride ?? this.options.notebookPath;
     const session = await this.colabClient.createSession(
-      this.options.notebookPath,
+      notebookPath,
       this.options.kernelName,
       this.currentProxyUrl,
       this.currentToken

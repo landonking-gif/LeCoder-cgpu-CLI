@@ -1,5 +1,7 @@
 # LeCoder cGPU CLI 🚀
 
+[![npm version](https://img.shields.io/npm/v/lecoder-cgpu.svg)](https://www.npmjs.com/package/lecoder-cgpu)
+[![npm downloads](https://img.shields.io/npm/dm/lecoder-cgpu.svg)](https://www.npmjs.com/package/lecoder-cgpu)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
@@ -7,6 +9,8 @@
 **Control Google Colab from your terminal. Run code on free cloud GPUs without leaving your IDE.**
 
 Perfect for students with Colab Pro, researchers, and developers who want programmatic access to cloud GPUs.
+
+📦 **[npm Package](https://www.npmjs.com/package/lecoder-cgpu)** | 🚀 **[Getting Started](./GETTING_STARTED.md)** | 📚 **[Documentation](./docs/)** | 🐛 **[Report Issues](https://github.com/aryateja2106/LeCoder-cgpu-CLI/issues)**
 
 ## 🎯 Why LeCoder cGPU?
 
@@ -44,11 +48,22 @@ Train models, run experiments, and develop ML projects - all from your terminal.
 
 ## 📦 Installation
 
-### Quick Install (Recommended)
+### Option 1: npm (Easiest - Published Package ✨)
 
-**Pre-built Binaries (No Node.js required):**
+**Requires Node.js 18+**
 
-Download the latest binary for your platform:
+```bash
+npm install -g lecoder-cgpu
+```
+
+That's it! Verify:
+```bash
+lecoder-cgpu --version
+```
+
+### Option 2: Pre-built Binaries (No Node.js required)
+
+Download for your platform:
 
 ```bash
 # macOS (Intel)
@@ -67,28 +82,9 @@ chmod +x lecoder-cgpu && sudo mv lecoder-cgpu /usr/local/bin/
 Invoke-WebRequest -Uri "https://github.com/aryateja2106/LeCoder-cgpu-CLI/releases/latest/download/lecoder-cgpu-win-x64.exe" -OutFile "lecoder-cgpu.exe"
 ```
 
-See [INSTALLATION.md](./INSTALLATION.md) for detailed instructions and checksum verification.
+See [INSTALLATION.md](./INSTALLATION.md) for checksum verification.
 
-**npm (Requires Node.js 18+):**
-
-```bash
-# Install latest version
-npm install -g lecoder-cgpu
-
-# Install specific version
-npm install -g lecoder-cgpu@0.5.1
-
-# Install beta version
-npm install -g lecoder-cgpu@beta
-```
-
-**Verify installation:**
-```bash
-lecoder-cgpu --version
-lecoder-cgpu --help
-```
-
-### Install from Source
+### Option 3: From Source (For Developers)
 
 ```bash
 # Clone the repository
@@ -122,58 +118,49 @@ lecoder-cgpu --version
 **All Methods:**
 - Google Account required for Colab access
 
-## 🚀 Quick Start
+## 🚀 Quick Start (3 Steps)
 
-### 1️⃣ First Time Setup
+### 1️⃣ Install
+```bash
+npm install -g lecoder-cgpu
+```
 
-Authenticate with Google and connect to Colab:
-
+### 2️⃣ Connect to Colab
 ```bash
 lecoder-cgpu connect
 ```
+Opens Google OAuth → Authenticates → Drops you into an interactive GPU shell
 
-This will:
-1. Open Google OAuth in your browser
-2. Request necessary permissions (Colab + Drive)
-3. Create and connect to a new Colab runtime
-4. Drop you into an interactive shell
-
-### 2️⃣ Run a Python Script
-
-Execute code remotely:
-
+### 3️⃣ Run Your Code
 ```bash
 lecoder-cgpu run "python train.py"
 ```
 
-### 3️⃣ Transfer Files
+**That's it!** You're now running code on free Colab GPUs from your terminal. 🎉
+
+---
+
+## 📖 Essential Commands
 
 ```bash
-# Upload a file
-lecoder-cgpu upload local-model.py /content/model.py
+# File transfer
+lecoder-cgpu upload local.py /content/remote.py
+lecoder-cgpu download /content/results.csv ./local.csv
 
-# Download results
-lecoder-cgpu download /content/results.csv ./results.csv
-```
-
-### 4️⃣ Manage Notebooks
-
-```bash
-# List all your notebooks
+# Notebook management
 lecoder-cgpu notebook list
+lecoder-cgpu notebook create "My Project" --template gpu
 
-# Create a new GPU notebook
-lecoder-cgpu notebook create "ML Training" --template gpu
+# System info
+lecoder-cgpu status               # Check connection & GPU
+lecoder-cgpu logs                 # View execution history
 
-# Open notebook in browser
-lecoder-cgpu notebook open "notebook_id_here"
+# Multi-session (Colab Pro)
+lecoder-cgpu sessions list        # List all sessions
+lecoder-cgpu sessions switch <id> # Switch active session
 ```
 
-### 5️⃣ Check GPU Info
-
-```bash
-lecoder-cgpu gpu-info
-```
+📚 **[Complete API Reference](./docs/api-reference.md)** | 🔧 **[Troubleshooting](./TROUBLESHOOTING.md)**
 
 ### 6️⃣ Manage Multiple Sessions (Colab Pro)
 
@@ -1264,6 +1251,27 @@ Per-platform checksums are generated for release verification:
 
 See `scripts/prepare-release.sh` for the release preparation workflow.
 
+## 🚀 Get Started Now
+
+```bash
+npm install -g lecoder-cgpu
+lecoder-cgpu connect
+# You're now connected to a free GPU! 🎉
+```
+
+**Made with ❤️ for students, researchers, and developers who love cloud GPUs**
+
+---
+
+## 📞 Support & Community
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/aryateja2106/LeCoder-cgpu-CLI/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/aryateja2106/LeCoder-cgpu-CLI/discussions)
+- 📦 **npm Package**: [lecoder-cgpu](https://www.npmjs.com/package/lecoder-cgpu)
+- 📧 **Security Issues**: aryateja2106@gmail.com
+
+⭐ **Star this repo** if you find it useful!
+
 ## Related Projects
 
 - [LeCoder Nested Learning](https://github.com/aryateja2106/nested-learning) - Main project
@@ -1281,6 +1289,10 @@ Built on the foundation of [cgpu](https://github.com/RohanAdwankar/cgpu) by Roha
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
 
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
+
 ---
 
 **Part of the LeCoder Project** - Advanced machine learning optimization research and tooling.
+
+*Not affiliated with Google or Google Colab. This is an independent open-source project.*

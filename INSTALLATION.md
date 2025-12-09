@@ -2,12 +2,14 @@
 
 Complete step-by-step instructions for installing LeCoder cGPU CLI on all platforms.
 
+> **Quick Start**: `npm install -g lecoder-cgpu` (Requires Node.js 18+)
+
 ## Table of Contents
 
 - [System Requirements](#system-requirements)
 - [Installation Methods](#installation-methods)
-  - [Method 1: Pre-built Binaries (Recommended)](#method-1-pre-built-binaries-recommended)
-  - [Method 2: npm](#method-2-npm-requires-nodejs)
+  - [Method 1: npm (Recommended - Published Package)](#method-1-npm-recommended---published-package)
+  - [Method 2: Pre-built Binaries](#method-2-pre-built-binaries)
   - [Method 3: Build from Source](#method-3-build-from-source)
 - [Platform-Specific Binary Instructions](#platform-specific-binary-instructions)
   - [macOS](#macos)
@@ -46,9 +48,29 @@ Complete step-by-step instructions for installing LeCoder cGPU CLI on all platfo
 
 ## Installation Methods
 
-## Method 1: Pre-built Binaries (Recommended)
+## Method 1: npm (Recommended - Published Package)
 
-Download the latest binary for your platform from [GitHub Releases](https://github.com/aryateja2106/LeCoder-cgpu-CLI/releases).
+**Published on npm**: [lecoder-cgpu](https://www.npmjs.com/package/lecoder-cgpu)
+
+```bash
+# Install globally
+npm install -g lecoder-cgpu
+
+# Verify installation
+lecoder-cgpu --version
+```
+
+**Requirements**:
+- Node.js 18.0.0 or higher
+- npm 9.0.0 or higher
+
+That's it! Skip to [Initial Setup](#initial-setup).
+
+---
+
+## Method 2: Pre-built Binaries
+
+If you don't have Node.js or prefer standalone binaries, download from [GitHub Releases](https://github.com/aryateja2106/LeCoder-cgpu-CLI/releases).
 
 ### macOS
 

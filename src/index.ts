@@ -41,7 +41,7 @@ import { SessionStorage } from "./session/session-storage.js";
 import { SessionManager, type EnrichedSession, type SessionStats } from "./session/session-manager.js";
 import { ConnectionPool } from "./jupyter/connection-pool.js";
 import { initFileLogger, LogLevel } from "./utils/file-logger.js";
-import { handleSessionsList, switchSession, deleteSession, cleanStaleSessions } from "./commands/sessions-handlers.js";
+import { handleSessionsList, switchSession, deleteSession } from "./commands/sessions-handlers.js";
 
 // Prevent EPIPE errors when piping output (e.g. to head/tail)
 process.stdout.on("error", (err: NodeJS.ErrnoException) => {
@@ -285,7 +285,7 @@ program
       
       if (mode === "kernel") {
         // Kernel mode: Execute Python code via Jupyter kernel
-        let connection;
+        let connection: ColabConnection | undefined;
         try {
           connection = await runtimeManager.createKernelConnection(runtime);
           
@@ -1704,39 +1704,30 @@ sessionsCmd
         );
       }
       
-      if (!jsonMode) {
-        const spinner = ora("Cleaning stale sessions...").start();
+      if (jsonMode) {
+        const removed = await sessionManager.cleanStaleSessions();
+        console.log(JSON.stringify({ removed }, null, 2));
+        return;
+      }
+      
+      const spinner = ora("Cleaning stale sessions...").start();
         
-        try {
-          const removed = await sessionManager.cleanStaleSessions();
-          
-          if (removed.length === 0) {
-            spinner.succeed("No stale sessions found");
-          } else {
-            spinner.succeed(`Removed ${removed.length} stale session(s)`);
-            for (const id of removed) {
-              console.log(chalk.gray(`  ${id.substring(0, 8)}`));
-            }
+      try {
+        const removed = await sessionManager.cleanStaleSessions();
+        
+        if (removed.length === 0) {
+          spinner.succeed("No stale sessions found");
+        } else {
+          spinner.succeed(`Removed ${removed.length} stale session(s)`);
+          for (const id of removed) {
+            console.log(chalk.gray(`  ${id.substring(0, 8)}`));
           }
-        } catch (error) {
-          spinner.fail("Failed to clean sessions");
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(chalk.red(`\n${message}`));
-          process.exit(1);
         }
-      } else {
-        // JSON mode - use handler
-        try {
-          await cleanStaleSessions(sessionManager, jsonMode);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(JSON.stringify({
-            status: "error",
-            errorCode: 1,
-            error: { message }
-          }, null, 2));
-          process.exit(1);
-        }
+      } catch (error) {
+        spinner.fail("Failed to clean sessions");
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(chalk.red(`\n${message}`));
+        process.exit(1);
       }
     });
   });
@@ -1920,11 +1911,11 @@ program
         execSync(`npm install -g lecoder-cgpu@${tag}`, { stdio: "pipe" });
         upgradeSpinner.succeed(chalk.green(`Successfully upgraded to ${latestVersion}!`));
         console.log(chalk.gray("\nRestart your terminal or run 'lecoder-cgpu --version' to verify."));
-      } catch (installErr) {
+      } catch (error_) {
         upgradeSpinner.fail("Upgrade failed");
         console.error(chalk.red("Try running manually: npm install -g lecoder-cgpu@latest"));
         if (process.env.LECODER_CGPU_DEBUG) {
-          console.error(installErr);
+          console.error(error_);
         }
       }
     } catch (err) {
@@ -1973,11 +1964,11 @@ async function updateSubscriptionTier(
     // Use CCU info to determine tier based on eligible GPUs
     // Pro users have access to A100, L4; Free users only get T4
     const ccuInfo = await colabClient.getCcuInfo();
-    const eligibleGpus = ccuInfo.eligibleGpus.map(g => g.toUpperCase());
+    const eligibleGpus = new Set(ccuInfo.eligibleGpus.map(g => g.toUpperCase()));
     
     // Pro tier indicators: A100, L4, V100 access
     const proGpus = ["A100", "L4", "V100"];
-    const hasPro = proGpus.some(gpu => eligibleGpus.includes(gpu));
+    const hasPro = proGpus.some(gpu => eligibleGpus.has(gpu));
     
     // SubscriptionTier: 0 = NONE/Free, 1 = PRO, 2 = PRO_PLUS
     const tier = hasPro ? 1 : 0;

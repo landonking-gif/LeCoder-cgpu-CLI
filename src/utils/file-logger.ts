@@ -86,8 +86,8 @@ export class FileLogger extends EventEmitter {
 
   private async doInitialize(): Promise<void> {
     try {
-      // Create logs directory
-      await fs.mkdir(this.logsDir, { recursive: true });
+      // Create logs directory with restrictive permissions (0o700) to protect log files
+      await fs.mkdir(this.logsDir, { recursive: true, mode: 0o700 });
 
       // Clean up old logs
       await this.cleanupOldLogs();

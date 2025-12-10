@@ -1,15 +1,15 @@
 import http from "node:http";
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import {
   OAuth2Client,
-  Credentials as OAuth2Credentials,
+  type Credentials as OAuth2Credentials,
   CodeChallengeMethod,
 } from "google-auth-library";
 import fetch from "node-fetch";
 import open from "open";
 import chalk from "chalk";
 import { z } from "zod";
-import { FileAuthStorage } from "./session-storage.js";
+import type { FileAuthStorage } from "./session-storage.js";
 import { REQUIRED_SCOPES } from "./constants.js";
 import { isRunningInContainer } from "../utils/environment.js";
 

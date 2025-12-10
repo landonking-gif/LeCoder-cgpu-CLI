@@ -74,9 +74,9 @@ export class OutputFormatter {
    */
   static formatExecutionResult(
     result: ExecutionResult,
-    options: FormatOptions = { json: false }
+    options?: FormatOptions
   ): string {
-    if (options.json) {
+    if (options?.json) {
       return this.formatExecutionResultJson(result, options);
     }
     // For human-readable, we still use the existing chalk-based formatting

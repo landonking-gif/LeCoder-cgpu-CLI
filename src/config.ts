@@ -199,7 +199,7 @@ export async function runInteractiveOAuthWizard(
       "Add yourself as a test user",
       [
         `Visit ${chalk.underline("https://console.cloud.google.com/auth/audience")}.`,
-        `With your project selected click \"Add users\" under the Test Users section.`,
+        `With your project selected click "Add users" under the Test Users section.`,
         "Add your Google account email and save.",
       ],
     );
@@ -247,7 +247,9 @@ async function guideStep(
       `${buildProgressBar(index - 1, total)} Step ${index} of ${total} — ${title}`,
     ),
   );
-  details.forEach((line) => console.log(`  • ${line}`));
+  for (const line of details) {
+    console.log(`  • ${line}`);
+  }
   await rl.question(chalk.gray("Press Enter once you're done with this step."));
 }
 

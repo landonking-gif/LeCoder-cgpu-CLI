@@ -57,7 +57,7 @@ export class ColabConnection extends EventEmitter {
   private kernelClient: JupyterKernelClient | null = null;
   private session: Session | null = null;
   private kernelId: string | null = null;
-  private sessionId: string = randomUUID();
+  private readonly sessionId: string = randomUUID();
   private reconnectAttempts: number = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private currentToken: string;

@@ -39,7 +39,7 @@ export class FileAuthStorage {
       // Validate that session has all required scopes
       if (!validateScopes(session.scopes, REQUIRED_SCOPES)) {
         // Scope mismatch - force re-authentication
-        const invalidSessionKey = `${session.id}:${[...session.scopes].sort().join(",")}`;
+        const invalidSessionKey = `${session.id}:${[...session.scopes].sort((a, b) => a.localeCompare(b)).join(",")}`;
         if (this.lastInvalidScopeLogKey !== invalidSessionKey) {
           console.warn("Existing credentials are missing Drive access; please re-authenticate.");
           this.lastInvalidScopeLogKey = invalidSessionKey;

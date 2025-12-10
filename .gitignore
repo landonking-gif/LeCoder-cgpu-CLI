@@ -64,3 +64,16 @@ Desktop.ini
 # Development
 .claude/
 .cursor/
+
+# Internal documentation (not for public repo)
+RELEASE_CHECKLIST*.md
+RELEASE_PREPARATION*.md
+RELEASE_SUMMARY*.md
+SECURITY_AUDIT*.md
+SECURITY_ISSUES_SUMMARY.md
+SECURITY_CHECKLIST.md
+STRESS_TEST_RESULTS.md
+EDGE_CASE_FIXES_SUMMARY.md
+BUG_FIXES_REPORT.md
+CODE_QUALITY_IMPROVEMENTS.md
+commit-msg.txt

@@ -1,4 +1,4 @@
-import { UUID } from "crypto";
+import type { UUID } from "node:crypto";
 import * as https from "node:https";
 import fetch, { Headers, Request, RequestInit, Response } from "node-fetch";
 import { z } from "zod";

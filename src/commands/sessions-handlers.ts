@@ -94,6 +94,35 @@ function displaySessionStatsHuman(stats: SessionStats): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Handle the sessions list command.
+ * 
+ * @param sessionManager - The session manager
+ * @param options - Command options (json, stats)
+ * @param formatTime - Function to format relative time
+ */
+export async function handleSessionsList(
+  sessionManager: SessionManager,
+  options: SessionsListOptions,
+  formatTime: (date: Date) => string
+): Promise<void> {
+  const jsonMode = Boolean(options.json);
+  
+  if (options.stats) {
+    await displaySessionStats(sessionManager, jsonMode);
+    return;
+  }
+  
+  const sessions = await sessionManager.listSessions();
+  
+  if (jsonMode) {
+    console.log(JSON.stringify(sessions, null, 2));
+    return;
+  }
+  
+  displaySessionList(sessions, formatTime);
+}
+
+/**
  * Display list of all sessions.
  * 
  * Each session shows:
@@ -237,7 +266,7 @@ export async function switchSession(
   sessionManager: SessionManager,
   sessionId: string,
   jsonMode: boolean
-): Promise<{ success: true } | { error: string }> {
+): Promise<{ success: true; session: EnrichedSession } | { error: string }> {
   const result = await findSession(sessionManager, sessionId);
   
   if ("error" in result) {
@@ -246,19 +275,26 @@ export async function switchSession(
   
   await sessionManager.switchSession(result.session.id);
   
+  // Get the updated enriched session
+  const sessions = await sessionManager.listSessions();
+  const switched = sessions.find(s => s.id === result.session.id);
+  
+  if (!switched) {
+    return { error: "Session not found after switch" };
+  }
+  
   if (jsonMode) {
     console.log(JSON.stringify({ 
       switched: true, 
-      sessionId: result.session.id,
-      label: result.session.label 
+      sessionId: switched.id,
+      label: switched.label 
     }));
   } else {
-    console.log(chalk.green(`✓ Switched to session ${result.session.id.substring(0, 8)}`));
-    console.log(`  Label: ${result.session.label}`);
-    console.log(`  Runtime: ${result.session.runtime.label}`);
+    console.log(chalk.green(`✓ Switched to session ${switched.id.substring(0, 8)}`));
+    console.log(chalk.gray(`  ${switched.label}`));
   }
   
-  return { success: true };
+  return { success: true, session: switched };
 }
 
 /**

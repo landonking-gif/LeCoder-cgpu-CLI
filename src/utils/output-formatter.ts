@@ -98,12 +98,10 @@ export class OutputFormatter {
       errorCode: result.status === ReplyStatus.OK ? ErrorCode.SUCCESS : undefined,
     };
 
-    // Stdout (strip ANSI codes)
-    if (result.stdout) {
-      output.stdout = this.stripAnsiCodes(result.stdout);
-    }
+    // Stdout (strip ANSI codes) - always include, even if empty
+    output.stdout = result.stdout ? this.stripAnsiCodes(result.stdout) : "";
 
-    // Stderr (strip ANSI codes)
+    // Stderr (strip ANSI codes) - only include if present
     if (result.stderr) {
       output.stderr = this.stripAnsiCodes(result.stderr);
     }

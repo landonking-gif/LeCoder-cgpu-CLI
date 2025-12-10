@@ -190,12 +190,35 @@ docker run -it node:18 bash
 # Inside container
 npm install -g lecoder-cgpu@<version>
 lecoder-cgpu --version
-lecoder-cgpu status
+lecoder-cgpu --help
 ```
 
 - [ ] Install works in clean environment
 - [ ] No unexpected dependencies required
-- [ ] CLI functions correctly
+- [ ] CLI executable works and shows help
+
+> **⚠️ Docker OAuth Limitation:** The OAuth flow requires a loopback server on `127.0.0.1` to receive the callback. Inside Docker containers, this won't work because the browser runs on the host but the callback server runs inside the container.
+>
+> **For container/CI environments, copy BOTH config.json and session.json:**
+>
+> ```bash
+> # Get config path (macOS uses ~/Library/Preferences/, Linux uses ~/.config/)
+> CONFIG_DIR=~/Library/Preferences/lecoder-cgpu  # macOS
+> # CONFIG_DIR=~/.config/lecoder-cgpu            # Linux
+>
+> # Full Docker test with authentication:
+> CONFIG_JSON=$(cat $CONFIG_DIR/config.json)
+> SESSION_JSON=$(cat $CONFIG_DIR/state/session.json)
+>
+> docker run --rm node:18 bash -c "
+>   npm install -g lecoder-cgpu@<version> &&
+>   mkdir -p ~/.config/lecoder-cgpu/state &&
+>   echo '$CONFIG_JSON' > ~/.config/lecoder-cgpu/config.json &&
+>   echo '$SESSION_JSON' > ~/.config/lecoder-cgpu/state/session.json &&
+>   chmod 600 ~/.config/lecoder-cgpu/state/session.json &&
+>   lecoder-cgpu status --json
+> "
+> ```
 
 ### Functional Tests
 
@@ -203,8 +226,29 @@ Test core commands to ensure the published package works:
 
 - [ ] `lecoder-cgpu status` - Shows connection status
 - [ ] `lecoder-cgpu connect` - Initiates OAuth flow (or shows auth prompt)
-- [ ] `lecoder-cgpu list` - Lists available sessions (after auth)
+- [ ] `lecoder-cgpu sessions list` - Lists available sessions (after auth)
+- [ ] `lecoder-cgpu auth-export --json` - Exports session token for containers/CI
+- [ ] `lecoder-cgpu auth-import` - Imports session token (test with `--help`)
 - [ ] `lecoder-cgpu --help` - Displays full help text
+
+### OAuth Setup Verification (5-Step Wizard)
+
+The first run of `lecoder-cgpu status` triggers the OAuth credential setup wizard. Verify each step works correctly:
+
+| Step | Task | URL | Verification |
+|------|------|-----|--------------|
+| 1 | Create Google Cloud project | https://console.cloud.google.com/ | Project visible in project selector |
+| 2 | Create Desktop OAuth client | https://console.cloud.google.com/auth/clients | Client ID and secret displayed |
+| 3 | Add test user | https://console.cloud.google.com/auth/audience | Your email listed under Test Users |
+| 4 | Enable Google Drive API | https://console.cloud.google.com/apis/library/drive.googleapis.com | API shows as "Enabled" |
+| 5 | Paste credentials | N/A | Credentials saved to `~/.config/lecoder-cgpu/config.json` |
+
+**Post-Setup Auth Flow:**
+- [ ] OAuth URL opens in browser (or displays URL for manual opening)
+- [ ] Google consent screen shows correct scopes (Colaboratory, Drive)
+- [ ] Callback to `127.0.0.1:<port>/callback` succeeds
+- [ ] Session stored in `~/.config/lecoder-cgpu/state/session.json`
+- [ ] Subsequent `lecoder-cgpu status` works without re-auth
 
 ## Distribution Tag Management
 

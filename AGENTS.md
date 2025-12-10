@@ -141,10 +141,58 @@ LECODER_CGPU_DEBUG=1 lecoder-cgpu <cmd>  # Verbose output
 
 | Path | Contents |
 |------|----------|
-| `~/.config/lecoder-cgpu/config.json` | OAuth client credentials |
-| `~/.config/lecoder-cgpu/state/session.json` | User session token |
+| `~/.config/lecoder-cgpu/config.json` | OAuth client credentials (client ID/secret) |
+| `~/.config/lecoder-cgpu/state/session.json` | User session token (refresh token) |
 | `~/.config/lecoder-cgpu/state/history.jsonl` | Execution history |
 | `~/.config/lecoder-cgpu/state/logs/` | Debug logs |
+
+> **Note:** On macOS, files are stored in `~/Library/Preferences/lecoder-cgpu/` instead.
+
+## Headless/Container Authentication
+
+OAuth login requires a browser, which doesn't work in Docker containers or CI environments. You need to copy **both** the config file (OAuth app credentials) and the session file (user token).
+
+### Method 1: Copy Full Config Directory (Recommended)
+```bash
+# From host machine
+docker cp ~/.config/lecoder-cgpu container:/root/.config/lecoder-cgpu
+
+# On macOS, use:
+docker cp ~/Library/Preferences/lecoder-cgpu container:/root/.config/lecoder-cgpu
+```
+
+### Method 2: Export and Import Files
+```bash
+# On host machine (with browser):
+# 1. Get the OAuth config
+cat ~/.config/lecoder-cgpu/config.json  # or ~/Library/Preferences/lecoder-cgpu/ on macOS
+
+# 2. Get the session token
+lecoder-cgpu auth-export --json
+```
+
+### Docker Example (Full Working Setup)
+```bash
+# Get config and session from host
+CONFIG_JSON=$(cat ~/Library/Preferences/lecoder-cgpu/config.json)
+SESSION_JSON=$(cat ~/Library/Preferences/lecoder-cgpu/state/session.json)
+
+docker run --rm node:18 bash -c "
+  npm install -g lecoder-cgpu &&
+  mkdir -p ~/.config/lecoder-cgpu/state &&
+  echo '$CONFIG_JSON' > ~/.config/lecoder-cgpu/config.json &&
+  echo '$SESSION_JSON' > ~/.config/lecoder-cgpu/state/session.json &&
+  chmod 600 ~/.config/lecoder-cgpu/state/session.json &&
+  lecoder-cgpu status --json
+"
+```
+
+### Using auth-import Command
+If you already have config.json in the container, you can use auth-import for just the session:
+```bash
+# In container (after config.json exists):
+lecoder-cgpu auth-import '<session JSON>' --force
+```
 
 ## Tips for Agents
 
@@ -168,4 +216,7 @@ LECODER_CGPU_DEBUG=1 lecoder-cgpu <cmd>  # Verbose output
 lecoder-cgpu --help
 lecoder-cgpu <command> --help
 ```
+
+
+
 

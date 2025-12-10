@@ -296,3 +296,6 @@ npm test
 5. Update CHANGELOG.md
 6. Prepare v0.5.2 release
 
+
+
+

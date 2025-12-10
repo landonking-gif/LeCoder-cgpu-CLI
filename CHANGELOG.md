@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.7] - 2025-12-09
+
+### Fixed
+- **Kernel Mode WebSocket Authentication**: Fixed critical "404 Unexpected server response" errors in kernel mode
+  - Added missing authentication headers (`X-Colab-Runtime-Proxy-Token`, `X-Colab-Client-Agent`, `Origin`) to WebSocket connections
+  - Added `authuser=0` query parameter to WebSocket URL
+  - Kernel mode now works reliably after authentication fix
+- **Session Creation Reliability**: Added retry logic for transient Colab service errors (502 Bad Gateway)
+  - Automatic retry with exponential backoff (3 attempts: 1s, 2s, 4s delays)
+  - Handles temporary Colab service unavailability gracefully
+- **Enhanced Error Handling**: Improved error messages with specific guidance for different error types
+  - Timeout errors: Clear suggestions for kernel initialization issues
+  - 502/503 errors: Guidance for service unavailability
+  - 404 errors: Suggestions for stale sessions
+  - Authentication errors: Re-authentication instructions
+- **Kernel Initialization Timeout**: Increased timeout from 30s to 60s for initial connections
+  - Separate timeout (30s) for reconnection attempts
+  - Better handling of slow kernel initialization on overloaded runtimes
+- **OAuth Container Detection**: Added warning when running in Docker/container environments
+  - Detects containerized environments and provides guidance
+  - Clear instructions for headless authentication setup
+- **OAuth Timeout**: Added 5-minute timeout for OAuth callback with helpful error message
+
+### Changed
+- **Output Size Limits**: Added 1MB limit for stdout/stderr with automatic truncation
+  - Prevents memory issues with very large outputs
+  - Warning message displayed when output is truncated
+- **Error Categorization**: Improved error code assignment for better programmatic handling
+  - Timeout errors now correctly use `TIMEOUT_ERROR` code
+  - Bad Gateway errors categorized as `ServiceUnavailable`
+  - More specific error names (`KernelTimeout`, `ServiceUnavailable`, `KernelNotFound`)
+
+### Added
+- **Comprehensive Stress Testing**: Created stress test suite for kernel mode
+  - Bash script: `scripts/stress-test-kernel-mode.sh`
+  - Python script: `scripts/stress_test_kernel.py`
+  - 10+ test categories covering edge cases
+- **Edge Cases Documentation**: Added comprehensive documentation
+  - `docs/kernel-mode-edge-cases.md`: Edge cases guide
+  - `docs/kernel-mode-improvements.md`: Implementation details
+  - `docs/test-results-analysis.md`: Test results analysis
+  - `STRESS_TEST_RESULTS.md`: Stress test results summary
+
+## [0.5.6] - 2025-12-09
+
+### Fixed
+- Auth flow improvements and error handling enhancements
+
 ## [0.5.5] - 2025-12-09
 
 ### Added
@@ -60,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Terminal session message clarity improvements
 
-## [0.5.1] - 2025-01-XX
+## [0.5.1] - 2025-12-08
 
 ### Added
 - **Comprehensive Test Suite**: Full test coverage for all major components

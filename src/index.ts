@@ -143,9 +143,9 @@ async function createApp(configPath?: string) {
 }
 
 // Get package version dynamically
-// When compiled, this file is at dist/src/index.js, so we need to go up two levels
+// When running with tsx from src/, we need to go up one level
 const require = createRequire(import.meta.url);
-const packageJson = require("../../package.json");
+const packageJson = require("../package.json");
 
 const program = new Command();
 program
